@@ -18,6 +18,9 @@ contract GrantStreamController is AccessControl {
     // Track created streams by grant ID
     mapping(uint256 => uint256) public grantToStreamId;
 
+    // Track the ERC-20 token associated with each stream
+    mapping(uint256 => IERC20) public streamToToken;
+
     event GrantStreamCreated(
         uint256 indexed grantId, uint256 indexed streamId, address indexed recipient, uint128 amount
     );
@@ -85,6 +88,7 @@ contract GrantStreamController is AccessControl {
         streamId = SABLIER.createWithDurationsLL(params, unlockAmounts, durations);
 
         grantToStreamId[grantId] = streamId;
+        streamToToken[streamId] = token;
 
         emit GrantStreamCreated(grantId, streamId, recipient, amount);
     }
@@ -93,10 +97,14 @@ contract GrantStreamController is AccessControl {
      * @notice Cancels an active stream.
      */
     function cancelGrantStream(uint256 streamId) external onlyRole(GRANT_ADMIN_ROLE) {
-        SABLIER.cancel(streamId);
+        IERC20 token = streamToToken[streamId];
 
-        // The refunded tokens are now held by this controller.
-        // We need to determine the token associated with the stream
-        // before forwarding the refund to the grant admin.
+        require(address(token) != address(0), "Unknown stream");
+
+        uint128 refundedAmount = SABLIER.cancel(streamId);
+
+        token.safeTransfer(msg.sender, refundedAmount);
+
+        emit GrantStreamCanceled(streamId, refundedAmount, 0);
     }
 }

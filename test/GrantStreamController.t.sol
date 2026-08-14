@@ -67,6 +67,8 @@ contract GrantStreamControllerTest is Test {
         uint128 grantAmount = 5_000 * 1e6;
         uint40 duration = 30 days;
 
+        uint256 adminBalanceBefore = IERC20(USDC).balanceOf(admin);
+
         vm.startPrank(admin);
 
         IERC20(USDC).approve(address(controller), grantAmount);
@@ -81,8 +83,13 @@ contract GrantStreamControllerTest is Test {
 
         vm.stopPrank();
 
-        // Sablier refunds the unstreamed amount to the controller.
-        assertEq(IERC20(USDC).balanceOf(address(controller)), grantAmount);
+        // The full refund should be returned to the grant admin.
+        uint256 adminBalanceAfter = IERC20(USDC).balanceOf(admin);
+
+        assertEq(adminBalanceAfter, adminBalanceBefore, "Admin should receive the full refund");
+
+        // Controller should not retain the refunded funds.
+        assertEq(IERC20(USDC).balanceOf(address(controller)), 0);
 
         // The grant should still map to the canceled stream.
         assertEq(controller.grantToStreamId(grantId), streamId);
