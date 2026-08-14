@@ -1,0 +1,3 @@
+@sablier/v2-core/=lib/v2-core/
+@prb/math/=lib/prb-math/
+@sablier/evm-utils/=lib/evm-utils/
