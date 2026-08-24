@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {Test, console2} from "forge-std/Test.sol";
 import {GrantStreamController} from "../src/GrantStreamController.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ISablierLockup} from "@sablier/v2-core/src/interfaces/ISablierLockup.sol";
 
 contract GrantStreamControllerTest is Test {
     GrantStreamController public controller;
@@ -62,8 +63,8 @@ contract GrantStreamControllerTest is Test {
         assertGt(codeSize, 0, "Sablier address has no contract code");
     }
 
-    function test_CancelGrantStream() public {
-        uint256 grantId = 101;
+    function test_CancelGrantStream_AfterStreamingStarts() public {
+        uint256 grantId = 103;
         uint128 grantAmount = 5_000 * 1e6;
         uint40 duration = 30 days;
 
@@ -73,26 +74,47 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+        uint256 streamId = controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
 
-        // Controller should have no USDC after the stream is created.
-        assertEq(IERC20(USDC).balanceOf(address(controller)), 0);
+        // Move halfway through the stream.
+        vm.warp(block.timestamp + 15 days);
 
-        // Cancel the stream.
+        // Cancel after the stream has partially vested.
         controller.cancelGrantStream(streamId);
 
         vm.stopPrank();
 
-        // The full refund should be returned to the grant admin.
         uint256 adminBalanceAfter = IERC20(USDC).balanceOf(admin);
 
-        assertEq(adminBalanceAfter, adminBalanceBefore, "Admin should receive the full refund");
+        // Approximately half should have been refunded to the admin.
+        assertEq(
+            adminBalanceAfter,
+            adminBalanceBefore - (grantAmount / 2),
+            "Admin should have a net loss of approximately half"
+        );
 
-        // Controller should not retain the refunded funds.
-        assertEq(IERC20(USDC).balanceOf(address(controller)), 0);
+        // The controller must not retain any USDC.
+        assertEq(
+            IERC20(USDC).balanceOf(address(controller)),
+            0,
+            "Controller should not retain refunded funds"
+        );
 
-        // The grant should still map to the canceled stream.
-        assertEq(controller.grantToStreamId(grantId), streamId);
+        // The recipient's streamed amount should be approximately half.
+        uint128 streamedAmount = ISablierLockup(SABLIER_LOCKUP_LINEAR).streamedAmountOf(streamId);
+
+        assertApproxEqAbs(
+            streamedAmount,
+            grantAmount / 2,
+            1,
+            "Approximately half should be streamed to recipient"
+        );
     }
 
     function test_RevertWhen_NonAdminCreatesGrantStream() public {
@@ -105,7 +127,13 @@ contract GrantStreamControllerTest is Test {
         vm.startPrank(attacker);
 
         vm.expectRevert();
-        controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+        controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
 
         vm.stopPrank();
     }
@@ -119,7 +147,13 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+        uint256 streamId = controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
 
         vm.stopPrank();
 
