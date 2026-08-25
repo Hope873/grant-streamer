@@ -120,6 +120,34 @@ contract GrantStreamControllerTest is Test {
         );
     }
 
+    function test_RevertWhen_CancelGrantStream_AfterFullyVested() public {
+        uint256 grantId = 105;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+
+        IERC20(USDC).approve(address(controller), grantAmount);
+
+        uint256 streamId = controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
+
+        // Move exactly to the end of the stream.
+        vm.warp(block.timestamp + duration);
+
+        // A fully vested stream cannot be canceled.
+        vm.expectRevert();
+
+        controller.cancelGrantStream(streamId);
+
+        vm.stopPrank();
+    }
+
     function test_CancelGrantStream_AfterStreamingStarts() public {
         uint256 grantId = 103;
         uint128 grantAmount = 5_000 * 1e6;
