@@ -175,6 +175,40 @@ contract GrantStreamControllerTest is Test {
         vm.stopPrank();
     }
 
+    function test_RevertWhen_ReusingCanceledGrantId() public {
+        uint256 grantId = 107;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+
+        IERC20(USDC).approve(address(controller), grantAmount * 2);
+
+        uint256 streamId = controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
+
+        // Cancel the original stream.
+        controller.cancelGrantStream(streamId);
+
+        // The grant ID must remain permanently used.
+        vm.expectRevert();
+
+        controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
+
+        vm.stopPrank();
+    }
+
     function test_CancelGrantStream_AfterStreamingStarts() public {
         uint256 grantId = 103;
         uint128 grantAmount = 5_000 * 1e6;
