@@ -63,6 +63,63 @@ contract GrantStreamControllerTest is Test {
         assertGt(codeSize, 0, "Sablier address has no contract code");
     }
 
+    function test_CancelGrantStream_BeforeStreamingStarts() public {
+        uint256 grantId = 104;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        uint256 adminBalanceBefore = IERC20(USDC).balanceOf(admin);
+        uint256 recipientBalanceBefore = IERC20(USDC).balanceOf(recipient);
+
+        vm.startPrank(admin);
+
+        IERC20(USDC).approve(address(controller), grantAmount);
+
+        uint256 streamId = controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
+
+        // Cancel immediately, before any meaningful vesting occurs.
+        controller.cancelGrantStream(streamId);
+
+        vm.stopPrank();
+
+        uint256 adminBalanceAfter = IERC20(USDC).balanceOf(admin);
+        uint256 recipientBalanceAfter = IERC20(USDC).balanceOf(recipient);
+
+        // The full amount should be refunded to the admin.
+        assertEq(
+            adminBalanceAfter,
+            adminBalanceBefore,
+            "Admin should receive the full refund"
+        );
+
+        // Recipient should receive nothing.
+        assertEq(
+            recipientBalanceAfter,
+            recipientBalanceBefore,
+            "Recipient should receive nothing"
+        );
+
+        // Controller must not retain any USDC.
+        assertEq(
+            IERC20(USDC).balanceOf(address(controller)),
+            0,
+            "Controller should not retain USDC"
+        );
+
+        // The grant should still map to the canceled stream.
+        assertEq(
+            controller.grantToStreamId(grantId),
+            streamId,
+            "Grant should remain mapped to canceled stream"
+        );
+    }
+
     function test_CancelGrantStream_AfterStreamingStarts() public {
         uint256 grantId = 103;
         uint128 grantAmount = 5_000 * 1e6;
