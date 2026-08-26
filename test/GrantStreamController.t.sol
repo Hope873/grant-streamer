@@ -148,6 +148,17 @@ contract GrantStreamControllerTest is Test {
         vm.stopPrank();
     }
 
+    function test_RevertWhen_CancelGrantStream_UnknownStream() public {
+        uint256 unknownStreamId = 999999;
+
+        vm.startPrank(admin);
+
+        vm.expectRevert("Unknown stream");
+        controller.cancelGrantStream(unknownStreamId);
+
+        vm.stopPrank();
+    }
+
     function test_RevertWhen_CancelGrantStream_AfterAlreadyCanceled() public {
         uint256 grantId = 106;
         uint128 grantAmount = 5_000 * 1e6;
