@@ -105,6 +105,8 @@ contract GrantStreamController is AccessControl {
 
         token.safeTransfer(msg.sender, refundedAmount);
 
+        delete streamToToken[streamId];
+
         emit GrantStreamCanceled(streamId, refundedAmount, 0);
     }
 }
