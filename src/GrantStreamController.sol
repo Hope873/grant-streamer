@@ -20,6 +20,8 @@ contract GrantStreamController is AccessControl {
 
     // Track the ERC-20 token associated with each stream
     mapping(uint256 => IERC20) public streamToToken;
+    // Track whether a stream is still active.
+    mapping(uint256 => bool) public streamActive;
 
     event GrantStreamCreated(
         uint256 indexed grantId, uint256 indexed streamId, address indexed recipient, uint128 amount
@@ -89,6 +91,7 @@ contract GrantStreamController is AccessControl {
 
         grantToStreamId[grantId] = streamId;
         streamToToken[streamId] = token;
+        streamActive[streamId] = true;
 
         emit GrantStreamCreated(grantId, streamId, recipient, amount);
     }
@@ -100,6 +103,7 @@ contract GrantStreamController is AccessControl {
         IERC20 token = streamToToken[streamId];
 
         require(address(token) != address(0), "Unknown stream");
+        require(streamActive[streamId], "Stream not active");
 
         uint128 refundedAmount = SABLIER.cancel(streamId);
 
