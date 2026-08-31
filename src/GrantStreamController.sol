@@ -107,10 +107,10 @@ contract GrantStreamController is AccessControl {
 
         uint128 refundedAmount = SABLIER.cancel(streamId);
 
-        token.safeTransfer(msg.sender, refundedAmount);
-
         streamActive[streamId] = false;
         delete streamToToken[streamId];
+
+        token.safeTransfer(msg.sender, refundedAmount);
 
         emit GrantStreamCanceled(streamId, refundedAmount, 0);
     }
