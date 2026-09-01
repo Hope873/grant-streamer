@@ -375,6 +375,44 @@ contract GrantStreamControllerTest is Test {
         );
     }
 
+    function test_CancelGrantStream_RecipientWithdrawableAmount() public {
+        uint256 grantId = 108;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+
+        IERC20(USDC).approve(address(controller), grantAmount);
+
+        uint256 streamId = controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
+
+        // Move halfway through the stream.
+        vm.warp(block.timestamp + 15 days);
+
+        // Cancel the stream.
+        controller.cancelGrantStream(streamId);
+
+        vm.stopPrank();
+
+        // Sablier should leave approximately half of the grant
+        // available for the recipient to withdraw.
+        uint128 withdrawableAmount =
+            ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawableAmountOf(streamId);
+
+        assertApproxEqAbs(
+            withdrawableAmount,
+            grantAmount / 2,
+            1,
+            "Recipient should have approximately half available to withdraw"
+        );
+    }
+
     function test_RevertWhen_NonAdminCreatesGrantStream() public {
         uint256 grantId = 200;
         uint128 grantAmount = 1_000 * 1e6;
