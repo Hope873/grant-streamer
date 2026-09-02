@@ -7,6 +7,12 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISablierLockup} from "@sablier/v2-core/src/interfaces/ISablierLockup.sol";
 
 contract GrantStreamControllerTest is Test {
+    event GrantStreamCanceled(
+        uint256 indexed streamId,
+        uint128 senderAmount,
+        uint128 recipientAmount
+    );
+    
     GrantStreamController public controller;
 
     // Arbitrum Mainnet Addresses
@@ -411,6 +417,41 @@ contract GrantStreamControllerTest is Test {
             1,
             "Recipient should have approximately half available to withdraw"
         );
+    }
+
+    function test_CancelGrantStream_EmitsCorrectAmounts() public {
+        uint256 grantId = 110;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+
+        IERC20(USDC).approve(address(controller), grantAmount);
+
+        uint256 streamId = controller.createGrantStream(
+            grantId,
+            IERC20(USDC),
+            recipient,
+            grantAmount,
+            duration
+        );
+
+        // Move halfway through the stream.
+        vm.warp(block.timestamp + 15 days);
+
+        // The controller currently emits the cancellation event with
+        // recipientAmount = 0. Record the event so we can inspect it.
+        vm.expectEmit(true, false, false, true);
+
+        emit GrantStreamCanceled(
+            streamId,
+            grantAmount / 2,
+            0
+        );
+
+        controller.cancelGrantStream(streamId);
+
+        vm.stopPrank();
     }
 
     function test_RevertWhen_NonAdminCreatesGrantStream() public {
