@@ -4,12 +4,13 @@ pragma solidity ^0.8.20;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {ISablierLockup} from "@sablier/v2-core/src/interfaces/ISablierLockup.sol";
 import {Lockup} from "@sablier/v2-core/src/types/Lockup.sol";
 import {LockupLinear} from "@sablier/v2-core/src/types/LockupLinear.sol";
 
-contract GrantStreamController is AccessControl {
+contract GrantStreamController is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
     bytes32 public constant GRANT_ADMIN_ROLE = keccak256("GRANT_ADMIN_ROLE");
 
@@ -20,6 +21,10 @@ contract GrantStreamController is AccessControl {
 
     // Track the ERC-20 token associated with each stream
     mapping(uint256 => IERC20) public streamToToken;
+
+    // Track the original funder of each stream
+    mapping(uint256 => address) public streamToFunder;
+
     // Track whether a stream is still active.
     mapping(uint256 => bool) public streamActive;
 
@@ -54,7 +59,7 @@ contract GrantStreamController is AccessControl {
         address recipient,
         uint128 amount,
         uint40 durationInSeconds
-    ) external onlyRole(GRANT_ADMIN_ROLE) returns (uint256 streamId) {
+    ) external onlyRole(GRANT_ADMIN_ROLE) nonReentrant returns (uint256 streamId) {
         require(grantToStreamId[grantId] == 0, "Grant already streamed");
 
         require(recipient != address(0), "Invalid recipient");
@@ -91,6 +96,7 @@ contract GrantStreamController is AccessControl {
 
         grantToStreamId[grantId] = streamId;
         streamToToken[streamId] = token;
+        streamToFunder[streamId] = msg.sender;
         streamActive[streamId] = true;
 
         emit GrantStreamCreated(grantId, streamId, recipient, amount);
@@ -99,18 +105,21 @@ contract GrantStreamController is AccessControl {
     /**
      * @notice Cancels an active stream.
      */
-    function cancelGrantStream(uint256 streamId) external onlyRole(GRANT_ADMIN_ROLE) {
+    function cancelGrantStream(uint256 streamId) external onlyRole(GRANT_ADMIN_ROLE) nonReentrant {
         IERC20 token = streamToToken[streamId];
+        address funder = streamToFunder[streamId];
 
         require(address(token) != address(0), "Unknown stream");
+        require(funder != address(0), "Unknown funder");
         require(streamActive[streamId], "Stream not active");
 
         uint128 refundedAmount = SABLIER.cancel(streamId);
 
         streamActive[streamId] = false;
         delete streamToToken[streamId];
+        delete streamToFunder[streamId];
 
-        token.safeTransfer(msg.sender, refundedAmount);
+        token.safeTransfer(funder, refundedAmount);
 
         emit GrantStreamCanceled(streamId, refundedAmount, 0);
     }

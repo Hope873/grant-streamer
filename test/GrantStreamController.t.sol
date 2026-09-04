@@ -7,12 +7,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISablierLockup} from "@sablier/v2-core/src/interfaces/ISablierLockup.sol";
 
 contract GrantStreamControllerTest is Test {
-    event GrantStreamCanceled(
-        uint256 indexed streamId,
-        uint128 senderAmount,
-        uint128 recipientAmount
-    );
-    
+    event GrantStreamCanceled(uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount);
+
     GrantStreamController public controller;
 
     // Arbitrum Mainnet Addresses
@@ -22,6 +18,7 @@ contract GrantStreamControllerTest is Test {
 
     address admin = address(0x1);
     address recipient = address(0x2);
+    address secondAdmin = address(0x3);
 
     function setUp() public {
         // Fork Arbitrum at block height
@@ -81,13 +78,7 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         // Cancel immediately, before any meaningful vesting occurs.
         controller.cancelGrantStream(streamId);
@@ -98,32 +89,16 @@ contract GrantStreamControllerTest is Test {
         uint256 recipientBalanceAfter = IERC20(USDC).balanceOf(recipient);
 
         // The full amount should be refunded to the admin.
-        assertEq(
-            adminBalanceAfter,
-            adminBalanceBefore,
-            "Admin should receive the full refund"
-        );
+        assertEq(adminBalanceAfter, adminBalanceBefore, "Admin should receive the full refund");
 
         // Recipient should receive nothing.
-        assertEq(
-            recipientBalanceAfter,
-            recipientBalanceBefore,
-            "Recipient should receive nothing"
-        );
+        assertEq(recipientBalanceAfter, recipientBalanceBefore, "Recipient should receive nothing");
 
         // Controller must not retain any USDC.
-        assertEq(
-            IERC20(USDC).balanceOf(address(controller)),
-            0,
-            "Controller should not retain USDC"
-        );
+        assertEq(IERC20(USDC).balanceOf(address(controller)), 0, "Controller should not retain USDC");
 
         // The grant should still map to the canceled stream.
-        assertEq(
-            controller.grantToStreamId(grantId),
-            streamId,
-            "Grant should remain mapped to canceled stream"
-        );
+        assertEq(controller.grantToStreamId(grantId), streamId, "Grant should remain mapped to canceled stream");
     }
 
     function test_CancelGrantStream_ClearsStreamToken() public {
@@ -135,20 +110,10 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         // Confirm the stream is initially mapped to USDC.
-        assertEq(
-            address(controller.streamToToken(streamId)),
-            USDC,
-            "Stream should be mapped to USDC"
-        );
+        assertEq(address(controller.streamToToken(streamId)), USDC, "Stream should be mapped to USDC");
 
         // Cancel the stream.
         controller.cancelGrantStream(streamId);
@@ -156,11 +121,7 @@ contract GrantStreamControllerTest is Test {
         vm.stopPrank();
 
         // The stream mapping should be cleared after cancellation.
-        assertEq(
-            address(controller.streamToToken(streamId)),
-            address(0),
-            "Stream token mapping should be cleared"
-        );
+        assertEq(address(controller.streamToToken(streamId)), address(0), "Stream token mapping should be cleared");
     }
 
     function test_RevertWhen_CancelGrantStream_AfterFullyVested() public {
@@ -172,13 +133,7 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         // Move exactly to the end of the stream.
         vm.warp(block.timestamp + duration);
@@ -211,13 +166,7 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         // Cancel the stream once.
         controller.cancelGrantStream(streamId);
@@ -238,60 +187,36 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
-        assertTrue(
-            controller.streamActive(streamId),
-            "Stream should be active after creation"
-        );
+        assertTrue(controller.streamActive(streamId), "Stream should be active after creation");
 
         controller.cancelGrantStream(streamId);
 
         vm.stopPrank();
 
-        assertFalse(
-            controller.streamActive(streamId),
-            "Stream should be inactive after cancellation"
-        );
+        assertFalse(controller.streamActive(streamId), "Stream should be inactive after cancellation");
     }
 
     function test_CancelGrantStream_StateIsInactiveAfterCancellation() public {
-    uint256 grantId = 109;
-    uint128 grantAmount = 5_000 * 1e6;
-    uint40 duration = 30 days;
+        uint256 grantId = 109;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
 
-    vm.startPrank(admin);
+        vm.startPrank(admin);
 
-    IERC20(USDC).approve(address(controller), grantAmount);
+        IERC20(USDC).approve(address(controller), grantAmount);
 
-    uint256 streamId = controller.createGrantStream(
-        grantId,
-        IERC20(USDC),
-        recipient,
-        grantAmount,
-        duration
-    );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
-    assertTrue(
-        controller.streamActive(streamId),
-        "Stream should be active after creation"
-    );
+        assertTrue(controller.streamActive(streamId), "Stream should be active after creation");
 
-    controller.cancelGrantStream(streamId);
+        controller.cancelGrantStream(streamId);
 
-    vm.stopPrank();
+        vm.stopPrank();
 
-    assertFalse(
-        controller.streamActive(streamId),
-        "Stream should be inactive after cancellation"
-    );
-}
+        assertFalse(controller.streamActive(streamId), "Stream should be inactive after cancellation");
+    }
 
     function test_RevertWhen_ReusingCanceledGrantId() public {
         uint256 grantId = 107;
@@ -302,13 +227,7 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount * 2);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         // Cancel the original stream.
         controller.cancelGrantStream(streamId);
@@ -316,13 +235,7 @@ contract GrantStreamControllerTest is Test {
         // The grant ID must remain permanently used.
         vm.expectRevert();
 
-        controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         vm.stopPrank();
     }
@@ -338,13 +251,7 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         // Move halfway through the stream.
         vm.warp(block.timestamp + 15 days);
@@ -364,21 +271,12 @@ contract GrantStreamControllerTest is Test {
         );
 
         // The controller must not retain any USDC.
-        assertEq(
-            IERC20(USDC).balanceOf(address(controller)),
-            0,
-            "Controller should not retain refunded funds"
-        );
+        assertEq(IERC20(USDC).balanceOf(address(controller)), 0, "Controller should not retain refunded funds");
 
         // The recipient's streamed amount should be approximately half.
         uint128 streamedAmount = ISablierLockup(SABLIER_LOCKUP_LINEAR).streamedAmountOf(streamId);
 
-        assertApproxEqAbs(
-            streamedAmount,
-            grantAmount / 2,
-            1,
-            "Approximately half should be streamed to recipient"
-        );
+        assertApproxEqAbs(streamedAmount, grantAmount / 2, 1, "Approximately half should be streamed to recipient");
     }
 
     function test_CancelGrantStream_RecipientWithdrawableAmount() public {
@@ -390,13 +288,7 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         // Move halfway through the stream.
         vm.warp(block.timestamp + 15 days);
@@ -408,14 +300,10 @@ contract GrantStreamControllerTest is Test {
 
         // Sablier should leave approximately half of the grant
         // available for the recipient to withdraw.
-        uint128 withdrawableAmount =
-            ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawableAmountOf(streamId);
+        uint128 withdrawableAmount = ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawableAmountOf(streamId);
 
         assertApproxEqAbs(
-            withdrawableAmount,
-            grantAmount / 2,
-            1,
-            "Recipient should have approximately half available to withdraw"
+            withdrawableAmount, grantAmount / 2, 1, "Recipient should have approximately half available to withdraw"
         );
     }
 
@@ -428,13 +316,7 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         // Move halfway through the stream.
         vm.warp(block.timestamp + 15 days);
@@ -443,11 +325,7 @@ contract GrantStreamControllerTest is Test {
         // recipientAmount = 0. Record the event so we can inspect it.
         vm.expectEmit(true, false, false, true);
 
-        emit GrantStreamCanceled(
-            streamId,
-            grantAmount / 2,
-            0
-        );
+        emit GrantStreamCanceled(streamId, grantAmount / 2, 0);
 
         controller.cancelGrantStream(streamId);
 
@@ -464,13 +342,7 @@ contract GrantStreamControllerTest is Test {
         vm.startPrank(attacker);
 
         vm.expectRevert();
-        controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         vm.stopPrank();
     }
@@ -484,13 +356,7 @@ contract GrantStreamControllerTest is Test {
 
         IERC20(USDC).approve(address(controller), grantAmount);
 
-        uint256 streamId = controller.createGrantStream(
-            grantId,
-            IERC20(USDC),
-            recipient,
-            grantAmount,
-            duration
-        );
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         vm.stopPrank();
 
@@ -502,6 +368,38 @@ contract GrantStreamControllerTest is Test {
         controller.cancelGrantStream(streamId);
 
         vm.stopPrank();
+    }
+
+    function test_CancelGrantStream_RefundsOriginalFunder() public {
+        uint256 grantId = 110;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        bytes32 grantAdminRole = controller.GRANT_ADMIN_ROLE();
+
+        vm.prank(admin);
+        controller.grantRole(grantAdminRole, secondAdmin);
+
+        uint256 adminBalanceBefore = IERC20(USDC).balanceOf(admin);
+        uint256 secondAdminBalanceBefore = IERC20(USDC).balanceOf(secondAdmin);
+
+        vm.startPrank(admin);
+
+        IERC20(USDC).approve(address(controller), grantAmount);
+
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+
+        vm.stopPrank();
+
+        vm.prank(secondAdmin);
+        controller.cancelGrantStream(streamId);
+
+        uint256 adminBalanceAfter = IERC20(USDC).balanceOf(admin);
+        uint256 secondAdminBalanceAfter = IERC20(USDC).balanceOf(secondAdmin);
+
+        assertEq(adminBalanceAfter, adminBalanceBefore, "Original funder should receive the refund");
+
+        assertEq(secondAdminBalanceAfter, secondAdminBalanceBefore, "Cancelling admin must not receive the refund");
     }
 
     function test_RevertWhen_RecipientIsZero() public {
