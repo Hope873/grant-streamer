@@ -25,7 +25,7 @@ contract GrantStreamController is AccessControl, ReentrancyGuard {
     // Track the original funder of each stream
     mapping(uint256 => address) public streamToFunder;
 
-    // Track whether a stream is still active.
+    // True until this controller successfully cancels the stream.
     mapping(uint256 => bool) public streamActive;
 
     event GrantStreamCreated(
@@ -71,9 +71,17 @@ contract GrantStreamController is AccessControl, ReentrancyGuard {
         require(durationInSeconds > 0, "Duration must be greater than zero");
 
         // Transfer grant funds from the DAO/admin to this controller.
+        // Require the controller to receive exactly the requested amount.
+        // This rejects fee-on-transfer and other incompatible ERC-20 tokens.
+        uint256 balanceBefore = token.balanceOf(address(this));
+
         token.safeTransferFrom(msg.sender, address(this), amount);
 
-        // Approve Sablier to pull the grant funds.
+        uint256 balanceAfter = token.balanceOf(address(this));
+
+        require(balanceAfter >= balanceBefore && balanceAfter - balanceBefore == amount, "Unsupported token transfer");
+
+        // Approve Sablier to pull the exact grant amount.
         token.forceApprove(address(SABLIER), amount);
 
         // Configure Sablier Linear Stream parameters.
@@ -83,7 +91,7 @@ contract GrantStreamController is AccessControl, ReentrancyGuard {
             depositAmount: amount,
             token: token,
             cancelable: true,
-            transferable: true,
+            transferable: false,
             shape: "linear"
         });
 

@@ -5,6 +5,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {GrantStreamController} from "../src/GrantStreamController.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISablierLockup} from "@sablier/v2-core/src/interfaces/ISablierLockup.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract GrantStreamControllerTest is Test {
     event GrantStreamCanceled(uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount);
@@ -49,6 +50,26 @@ contract GrantStreamControllerTest is Test {
 
         assertGt(streamId, 0);
         assertEq(controller.grantToStreamId(grantId), streamId);
+    }
+
+    function test_SablierAllowanceIsZeroAfterStreamCreation() public {
+        uint256 grantId = 111;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+
+        IERC20(USDC).approve(address(controller), grantAmount);
+
+        controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+
+        vm.stopPrank();
+
+        assertEq(
+            IERC20(USDC).allowance(address(controller), SABLIER_LOCKUP_LINEAR),
+            0,
+            "Sablier allowance should be zero after stream creation"
+        );
     }
 
     function test_SablierAddress() public view {
@@ -370,6 +391,29 @@ contract GrantStreamControllerTest is Test {
         vm.stopPrank();
     }
 
+    function test_GrantAdminCanBeRevoked() public {
+        bytes32 grantAdminRole = controller.GRANT_ADMIN_ROLE();
+
+        vm.prank(admin);
+        controller.grantRole(grantAdminRole, secondAdmin);
+
+        assertTrue(controller.hasRole(grantAdminRole, secondAdmin), "Second admin should have grant admin role");
+
+        vm.prank(admin);
+        controller.revokeRole(grantAdminRole, secondAdmin);
+
+        assertFalse(
+            controller.hasRole(grantAdminRole, secondAdmin), "Second admin should no longer have grant admin role"
+        );
+
+        vm.startPrank(secondAdmin);
+
+        vm.expectRevert();
+        controller.createGrantStream(999, IERC20(USDC), recipient, 1_000 * 1e6, 30 days);
+
+        vm.stopPrank();
+    }
+
     function test_CancelGrantStream_RefundsOriginalFunder() public {
         uint256 grantId = 110;
         uint128 grantAmount = 5_000 * 1e6;
@@ -475,6 +519,39 @@ contract GrantStreamControllerTest is Test {
         controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
 
         vm.stopPrank();
+    }
+
+    function test_RevertWhen_StreamIsNotTransferable() public {
+        uint256 grantId = 120;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+
+        IERC20(USDC).approve(address(controller), grantAmount);
+
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+
+        vm.stopPrank();
+
+        // Confirm the stream is owned by the intended recipient.
+        assertEq(IERC721(SABLIER_LOCKUP_LINEAR).ownerOf(streamId), recipient, "Recipient should own the stream NFT");
+
+        // The recipient attempts to transfer the grant stream.
+        address newRecipient = address(0x4);
+
+        vm.prank(recipient);
+
+        vm.expectRevert(abi.encodeWithSignature("SablierLockup_NotTransferable(uint256)", streamId));
+
+        IERC721(SABLIER_LOCKUP_LINEAR).transferFrom(recipient, newRecipient, streamId);
+
+        // Ownership should remain unchanged.
+        assertEq(
+            IERC721(SABLIER_LOCKUP_LINEAR).ownerOf(streamId),
+            recipient,
+            "Non-transferable grant should remain with recipient"
+        );
     }
 
     function test_CreateGrantStream_TransfersFundsCorrectly() public {
