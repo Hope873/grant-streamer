@@ -11,6 +11,12 @@
       "rev": "bf647bd6046f2f7da30d0c2bf435e5c76a780c1b"
     }
   },
+  "lib\\lockup": {
+    "tag": {
+      "name": "v3.0.1",
+      "rev": "d0882200f335025364c75492b21591b843818cad"
+    }
+  },
   "lib\\openzeppelin-contracts": {
     "tag": {
       "name": "v5.7.0",
@@ -20,10 +26,3 @@
   "lib/prb-math": {
     "rev": "29a3c06c709496a8f9775dea115935befc5158a7"
   },
-  "lib\\v2-core": {
-    "tag": {
-      "name": "v3.0.1",
-      "rev": "d0882200f335025364c75492b21591b843818cad"
-    }
-  }
-}

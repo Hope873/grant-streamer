@@ -6,9 +6,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import {ISablierLockup} from "@sablier/v2-core/src/interfaces/ISablierLockup.sol";
-import {Lockup} from "@sablier/v2-core/src/types/Lockup.sol";
-import {LockupLinear} from "@sablier/v2-core/src/types/LockupLinear.sol";
+import {ISablierLockup} from "@sablier/lockup/interfaces/ISablierLockup.sol";
+import {Lockup} from "@sablier/lockup/types/Lockup.sol";
+import {LockupLinear} from "@sablier/lockup/types/LockupLinear.sol";
 
 contract GrantStreamController is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;

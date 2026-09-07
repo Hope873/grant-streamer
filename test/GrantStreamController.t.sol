@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Test, console2} from "forge-std/Test.sol";
 import {GrantStreamController} from "../src/GrantStreamController.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ISablierLockup} from "@sablier/v2-core/src/interfaces/ISablierLockup.sol";
+import {ISablierLockup} from "@sablier/lockup/interfaces/ISablierLockup.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract GrantStreamControllerTest is Test {
