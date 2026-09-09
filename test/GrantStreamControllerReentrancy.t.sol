@@ -9,11 +9,13 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {Lockup} from "@sablier/lockup/types/Lockup.sol";
 import {LockupLinear} from "@sablier/lockup/types/LockupLinear.sol";
 
 contract MockSablier {
+    using SafeERC20 for IERC20;
     uint256 public nextStreamId = 1;
     uint256 public createCount;
 
@@ -24,7 +26,7 @@ contract MockSablier {
     ) external returns (uint256 streamId) {
         createCount++;
 
-        IERC20(address(params.token)).transferFrom(msg.sender, address(this), params.depositAmount);
+        IERC20(address(params.token)).safeTransferFrom(msg.sender, address(this), params.depositAmount);
 
         streamId = nextStreamId++;
     }
