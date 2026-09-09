@@ -12,10 +12,7 @@ contract DeployGrantStreamController is Script {
 
         vm.startBroadcast();
 
-        controller = new GrantStreamController(
-            sablier,
-            admin
-        );
+        controller = new GrantStreamController(sablier, admin);
 
         vm.stopBroadcast();
 
