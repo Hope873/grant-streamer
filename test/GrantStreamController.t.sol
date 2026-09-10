@@ -9,7 +9,9 @@ import {Lockup} from "@sablier/lockup/types/Lockup.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract GrantStreamControllerTest is Test {
-    event GrantStreamCanceled(uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount);
+    event GrantStreamCanceled(
+        uint256 indexed grantId, uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount
+    );
 
     GrantStreamController public controller;
 
@@ -51,6 +53,7 @@ contract GrantStreamControllerTest is Test {
 
         assertGt(streamId, 0);
         assertEq(controller.grantToStreamId(grantId), streamId);
+        assertEq(controller.streamToGrantId(streamId), grantId);
     }
 
     function test_GetGrantStreamStatus_ReturnsCurrentStreamState() public {
@@ -430,9 +433,9 @@ contract GrantStreamControllerTest is Test {
 
         // The controller currently emits the cancellation event with
         // recipientAmount = 0. Record the event so we can inspect it.
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, true, false, true);
 
-        emit GrantStreamCanceled(streamId, grantAmount / 2, 0);
+        emit GrantStreamCanceled(grantId, streamId, grantAmount / 2, 0);
 
         controller.cancelGrantStream(streamId);
 
