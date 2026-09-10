@@ -19,6 +19,9 @@ contract GrantStreamController is AccessControl, ReentrancyGuard {
     // Track created streams by grant ID
     mapping(uint256 => uint256) public grantToStreamId;
 
+    // Track the grant associated with each stream
+    mapping(uint256 => uint256) public streamToGrantId;
+
     // Track the ERC-20 token associated with each stream
     mapping(uint256 => IERC20) public streamToToken;
 
@@ -32,7 +35,9 @@ contract GrantStreamController is AccessControl, ReentrancyGuard {
         uint256 indexed grantId, uint256 indexed streamId, address indexed recipient, uint128 amount
     );
 
-    event GrantStreamCanceled(uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount);
+    event GrantStreamCanceled(
+        uint256 indexed grantId, uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount
+    );
 
     constructor(address _sablierLockupLinear, address _admin) {
         require(_sablierLockupLinear != address(0), "Invalid Sablier address");
@@ -103,6 +108,7 @@ contract GrantStreamController is AccessControl, ReentrancyGuard {
         streamId = SABLIER.createWithDurationsLL(params, unlockAmounts, durations);
 
         grantToStreamId[grantId] = streamId;
+        streamToGrantId[streamId] = grantId;
         streamToToken[streamId] = token;
         streamToFunder[streamId] = msg.sender;
         streamActive[streamId] = true;
@@ -129,6 +135,36 @@ contract GrantStreamController is AccessControl, ReentrancyGuard {
 
         token.safeTransfer(funder, refundedAmount);
 
-        emit GrantStreamCanceled(streamId, refundedAmount, 0);
+        emit GrantStreamCanceled(streamToGrantId[streamId], streamId, refundedAmount, 0);
+    }
+
+    /**
+     * @notice Returns the current lifecycle and accounting status of a grant stream.
+     * @dev Returns zero/default values when the grant has not been streamed.
+     */
+    function getGrantStreamStatus(uint256 grantId)
+        external
+        view
+        returns (
+            uint256 streamId,
+            address recipient,
+            IERC20 token,
+            address funder,
+            Lockup.Status status,
+            uint128 streamedAmount,
+            uint128 withdrawableAmount,
+            uint128 refundableAmount
+        )
+    {
+        streamId = grantToStreamId[grantId];
+        if (streamId == 0) return (0, address(0), IERC20(address(0)), address(0), Lockup.Status.PENDING, 0, 0, 0);
+
+        recipient = SABLIER.getRecipient(streamId);
+        token = streamToToken[streamId];
+        funder = streamToFunder[streamId];
+        status = SABLIER.statusOf(streamId);
+        streamedAmount = SABLIER.streamedAmountOf(streamId);
+        withdrawableAmount = SABLIER.withdrawableAmountOf(streamId);
+        refundableAmount = SABLIER.refundableAmountOf(streamId);
     }
 }

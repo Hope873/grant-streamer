@@ -5,10 +5,13 @@ import {Test, console2} from "forge-std/Test.sol";
 import {GrantStreamController} from "../src/GrantStreamController.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISablierLockup} from "@sablier/lockup/interfaces/ISablierLockup.sol";
+import {Lockup} from "@sablier/lockup/types/Lockup.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract GrantStreamControllerTest is Test {
-    event GrantStreamCanceled(uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount);
+    event GrantStreamCanceled(
+        uint256 indexed grantId, uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount
+    );
 
     GrantStreamController public controller;
 
@@ -50,6 +53,92 @@ contract GrantStreamControllerTest is Test {
 
         assertGt(streamId, 0);
         assertEq(controller.grantToStreamId(grantId), streamId);
+        assertEq(controller.streamToGrantId(streamId), grantId);
+    }
+
+    function test_GetGrantStreamStatus_ReturnsCurrentStreamState() public {
+        uint256 grantId = 102;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+        IERC20(USDC).approve(address(controller), grantAmount);
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+        vm.stopPrank();
+
+        (
+            uint256 returnedStreamId,
+            address returnedRecipient,
+            IERC20 returnedToken,
+            address returnedFunder,
+            Lockup.Status status,
+            uint128 streamedAmount,
+            uint128 withdrawableAmount,
+            uint128 refundableAmount
+        ) = controller.getGrantStreamStatus(grantId);
+
+        assertEq(returnedStreamId, streamId);
+        assertEq(returnedRecipient, recipient);
+        assertEq(address(returnedToken), USDC);
+        assertEq(returnedFunder, admin);
+        assertEq(uint8(status), uint8(Lockup.Status.STREAMING));
+        assertEq(streamedAmount, 0);
+        assertEq(withdrawableAmount, 0);
+        assertEq(refundableAmount, grantAmount);
+        assertEq(streamedAmount + refundableAmount, grantAmount);
+
+        // Advance halfway through the stream and verify Sablier accounting updates.
+        vm.warp(block.timestamp + duration / 2);
+        _assertGrantStreamStatusAfterHalfDuration(grantId, streamId, grantAmount);
+    }
+
+    function _assertGrantStreamStatusAfterHalfDuration(uint256 grantId, uint256 streamId, uint128 grantAmount)
+        internal
+        view
+    {
+        (
+            uint256 returnedStreamId,
+            address returnedRecipient,
+            IERC20 returnedToken,
+            address returnedFunder,
+            Lockup.Status status,
+            uint128 streamedAmount,
+            uint128 withdrawableAmount,
+            uint128 refundableAmount
+        ) = controller.getGrantStreamStatus(grantId);
+
+        assertEq(returnedStreamId, streamId);
+        assertEq(returnedRecipient, recipient);
+        assertEq(address(returnedToken), USDC);
+        assertEq(returnedFunder, admin);
+        assertEq(uint8(status), uint8(Lockup.Status.STREAMING));
+        assertGt(streamedAmount, 0);
+        assertEq(streamedAmount, withdrawableAmount);
+        assertGt(refundableAmount, 0);
+        assertLt(refundableAmount, grantAmount);
+        assertEq(streamedAmount + refundableAmount, grantAmount);
+    }
+
+    function test_GetGrantStreamStatus_UnknownGrantReturnsDefaults() public view {
+        (
+            uint256 streamId,
+            address returnedRecipient,
+            IERC20 returnedToken,
+            address returnedFunder,
+            Lockup.Status status,
+            uint128 streamedAmount,
+            uint128 withdrawableAmount,
+            uint128 refundableAmount
+        ) = controller.getGrantStreamStatus(999999);
+
+        assertEq(streamId, 0);
+        assertEq(returnedRecipient, address(0));
+        assertEq(address(returnedToken), address(0));
+        assertEq(returnedFunder, address(0));
+        assertEq(uint8(status), uint8(Lockup.Status.PENDING));
+        assertEq(streamedAmount, 0);
+        assertEq(withdrawableAmount, 0);
+        assertEq(refundableAmount, 0);
     }
 
     function test_SablierAllowanceIsZeroAfterStreamCreation() public {
@@ -344,9 +433,9 @@ contract GrantStreamControllerTest is Test {
 
         // The controller currently emits the cancellation event with
         // recipientAmount = 0. Record the event so we can inspect it.
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, true, false, true);
 
-        emit GrantStreamCanceled(streamId, grantAmount / 2, 0);
+        emit GrantStreamCanceled(grantId, streamId, grantAmount / 2, 0);
 
         controller.cancelGrantStream(streamId);
 
