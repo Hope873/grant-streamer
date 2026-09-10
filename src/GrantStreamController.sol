@@ -131,4 +131,34 @@ contract GrantStreamController is AccessControl, ReentrancyGuard {
 
         emit GrantStreamCanceled(streamId, refundedAmount, 0);
     }
+
+    /**
+     * @notice Returns the current lifecycle and accounting status of a grant stream.
+     * @dev Returns zero/default values when the grant has not been streamed.
+     */
+    function getGrantStreamStatus(uint256 grantId)
+        external
+        view
+        returns (
+            uint256 streamId,
+            address recipient,
+            IERC20 token,
+            address funder,
+            Lockup.Status status,
+            uint128 streamedAmount,
+            uint128 withdrawableAmount,
+            uint128 refundableAmount
+        )
+    {
+        streamId = grantToStreamId[grantId];
+        if (streamId == 0) return (0, address(0), IERC20(address(0)), address(0), Lockup.Status.PENDING, 0, 0, 0);
+
+        recipient = SABLIER.getRecipient(streamId);
+        token = streamToToken[streamId];
+        funder = streamToFunder[streamId];
+        status = SABLIER.statusOf(streamId);
+        streamedAmount = SABLIER.streamedAmountOf(streamId);
+        withdrawableAmount = SABLIER.withdrawableAmountOf(streamId);
+        refundableAmount = SABLIER.refundableAmountOf(streamId);
+    }
 }
