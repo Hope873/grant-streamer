@@ -666,4 +666,106 @@ contract GrantStreamControllerTest is Test {
 
         assertEq(controllerBalanceAfter, controllerBalanceBefore);
     }
+
+    function test_RecipientCanWithdrawFullAmountAfterVesting() public {
+        uint256 grantId = 121;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+        IERC20(USDC).approve(address(controller), grantAmount);
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+        vm.stopPrank();
+
+        // Advance to the end of the stream.
+        vm.warp(block.timestamp + duration);
+
+        assertEq(uint8(ISablierLockup(SABLIER_LOCKUP_LINEAR).statusOf(streamId)), uint8(Lockup.Status.SETTLED));
+
+        assertEq(ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawableAmountOf(streamId), grantAmount);
+
+        uint256 recipientBalanceBefore = IERC20(USDC).balanceOf(recipient);
+        uint256 minFeeWei = ISablierLockup(SABLIER_LOCKUP_LINEAR).calculateMinFeeWei(streamId);
+
+        vm.prank(recipient);
+        uint128 withdrawnAmount =
+            ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawMax{value: minFeeWei}(streamId, recipient);
+
+        uint256 recipientBalanceAfter = IERC20(USDC).balanceOf(recipient);
+
+        assertEq(withdrawnAmount, grantAmount);
+        assertEq(recipientBalanceAfter - recipientBalanceBefore, grantAmount);
+        assertEq(ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawableAmountOf(streamId), 0);
+        assertEq(uint8(ISablierLockup(SABLIER_LOCKUP_LINEAR).statusOf(streamId)), uint8(Lockup.Status.DEPLETED));
+    }
+
+    function test_RecipientCanWithdrawAfterCancellation() public {
+        uint256 grantId = 122;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+        IERC20(USDC).approve(address(controller), grantAmount);
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+
+        // Let half of the grant vest.
+        vm.warp(block.timestamp + duration / 2);
+
+        controller.cancelGrantStream(streamId);
+        vm.stopPrank();
+
+        assertEq(uint8(ISablierLockup(SABLIER_LOCKUP_LINEAR).statusOf(streamId)), uint8(Lockup.Status.CANCELED));
+
+        uint128 withdrawableAmount = ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawableAmountOf(streamId);
+
+        assertGt(withdrawableAmount, 0);
+        assertLt(withdrawableAmount, grantAmount);
+
+        uint256 recipientBalanceBefore = IERC20(USDC).balanceOf(recipient);
+        uint256 minFeeWei = ISablierLockup(SABLIER_LOCKUP_LINEAR).calculateMinFeeWei(streamId);
+
+        vm.prank(recipient);
+        uint128 withdrawnAmount =
+            ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawMax{value: minFeeWei}(streamId, recipient);
+
+        uint256 recipientBalanceAfter = IERC20(USDC).balanceOf(recipient);
+
+        assertEq(withdrawnAmount, withdrawableAmount);
+        assertEq(recipientBalanceAfter - recipientBalanceBefore, withdrawnAmount);
+
+        assertEq(ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawableAmountOf(streamId), 0);
+        assertEq(uint8(ISablierLockup(SABLIER_LOCKUP_LINEAR).statusOf(streamId)), uint8(Lockup.Status.DEPLETED));
+    }
+
+    function test_RecipientCanWithdrawVestedAmount() public {
+        uint256 grantId = 120;
+        uint128 grantAmount = 5_000 * 1e6;
+        uint40 duration = 30 days;
+
+        vm.startPrank(admin);
+        IERC20(USDC).approve(address(controller), grantAmount);
+        uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
+        vm.stopPrank();
+
+        // Advance halfway through the linear stream.
+        vm.warp(block.timestamp + duration / 2);
+
+        (,,,,,, uint128 withdrawableAmount,) = controller.getGrantStreamStatus(grantId);
+        assertGt(withdrawableAmount, 0);
+        assertLt(withdrawableAmount, grantAmount);
+
+        uint256 recipientBalanceBefore = IERC20(USDC).balanceOf(recipient);
+
+        uint256 minFeeWei = ISablierLockup(SABLIER_LOCKUP_LINEAR).calculateMinFeeWei(streamId);
+
+        vm.prank(recipient);
+        uint128 withdrawnAmount =
+            ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawMax{value: minFeeWei}(streamId, recipient);
+
+        uint256 recipientBalanceAfter = IERC20(USDC).balanceOf(recipient);
+
+        assertEq(withdrawnAmount, withdrawableAmount);
+        assertEq(recipientBalanceAfter - recipientBalanceBefore, withdrawnAmount);
+        assertEq(ISablierLockup(SABLIER_LOCKUP_LINEAR).withdrawableAmountOf(streamId), 0);
+    }
 }
