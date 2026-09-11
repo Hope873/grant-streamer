@@ -46,7 +46,7 @@ forge test
 forge fmt --check
 ```
 
-The current test suite contains 27 tests covering stream creation, cancellation, access control, reentrancy protection, token handling, grant-ID reuse, and Sablier allowance cleanup.
+The current test suite contains 32 tests covering stream creation, cancellation, access control, reentrancy protection, token handling, grant-ID reuse, and Sablier allowance cleanup.
 
 ## Environment
 
