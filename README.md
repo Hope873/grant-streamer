@@ -100,7 +100,17 @@ Grant administrators should verify:
 5. The admin account is securely controlled.
 6. The deployment private key is never stored in the repository.
 
-The controller does not provide an upgrade mechanism. A new deployment is required for contract logic changes.
+The controller's grant-admin role is required to create and cancel streams. Stream state is written only after the underlying Sablier operation succeeds.
+
+Additional safeguards include:
+
+- `ReentrancyGuard` protects stream creation and cancellation.
+- Token funding uses `SafeERC20` with an exact balance-delta check, rejecting fee-on-transfer or otherwise incompatible tokens.
+- Sablier approval uses `forceApprove` for compatibility with tokens that require allowance resets.
+- Created streams are non-transferable, preventing the stream NFT from being moved to another owner.
+- Cancellation is restricted to the controller's recorded stream and refunds the original funder.
+- A grant ID cannot be reused after a stream has been created, including after cancellation.
+- The controller has no upgrade mechanism. A new deployment is required for contract logic changes.
 
 ## Contract Size
 
