@@ -9,6 +9,10 @@ import {Lockup} from "@sablier/lockup/types/Lockup.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract GrantStreamControllerTest is Test {
+    event GrantStreamCreated(
+        uint256 indexed grantId, uint256 indexed streamId, address indexed recipient, uint128 amount
+    );
+
     event GrantStreamCanceled(
         uint256 indexed grantId, uint256 indexed streamId, uint128 senderAmount, uint128 recipientAmount
     );
@@ -47,6 +51,9 @@ contract GrantStreamControllerTest is Test {
 
         vm.startPrank(admin);
         IERC20(USDC).approve(address(controller), grantAmount);
+
+        vm.expectEmit(true, false, true, true);
+        emit GrantStreamCreated(grantId, 0, recipient, grantAmount);
 
         uint256 streamId = controller.createGrantStream(grantId, IERC20(USDC), recipient, grantAmount, duration);
         vm.stopPrank();
