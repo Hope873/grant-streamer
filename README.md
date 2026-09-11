@@ -25,6 +25,7 @@ src/
 script/
   DeployGrantStreamController.s.sol
   DeployTestToken.s.sol
+  ValidateGrantStreamController.s.sol
 
 test/
   GrantStreamController.t.sol
@@ -61,6 +62,20 @@ GRANT_STREAM_CONTROLLER=
 ```
 
 Never commit `.env` or expose the deployment private key.
+
+### Read-only validation
+
+The validation script checks the deployed controller configuration without broadcasting a transaction and does not require a private key:
+
+```shell
+forge script script/ValidateGrantStreamController.s.sol:ValidateGrantStreamController --rpc-url "$RPC_URL"
+```
+
+To validate a specific grant and its stream lifecycle state, set `VALIDATE_GRANT=true` and provide `GRANT_ID`:
+
+```shell
+VALIDATE_GRANT=true GRANT_ID=1001 forge script script/ValidateGrantStreamController.s.sol:ValidateGrantStreamController --rpc-url "$RPC_URL"
+```
 
 ## Deployment
 
