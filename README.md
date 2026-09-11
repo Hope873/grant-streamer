@@ -57,6 +57,7 @@ RPC_URL=
 PRIVATE_KEY=
 ADMIN_ADDRESS=
 SABLIER_LOCKUP_LINEAR=
+GRANT_STREAM_CONTROLLER=
 ```
 
 Never commit `.env` or expose the deployment private key.
