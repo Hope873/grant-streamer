@@ -81,13 +81,13 @@ The controller has been deployed and tested end-to-end on Arbitrum Sepolia.
 
 ### GrantStreamController
 
-`0xa2BFbb228a0B96A194999B8b01084505cD9E978c`
+`0x5E6140659DFF8b12754518fBB8DC99097ffFF4bB`
 
 ### TestToken
 
 `0x7A30E94Ec82D7fD07441D2157E618Ce1536bEB72`
 
-The live validation successfully created stream ID `9` for a 100 GST, one-hour stream and subsequently cancelled it. The cancellation refund was returned to the original funder.
+The live validation successfully created stream ID `10` for a 100 GST, one-hour stream and subsequently cancelled it. The cancellation refund was returned to the original funder.
 
 ## Security Notes
 
