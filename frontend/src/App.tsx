@@ -1,10 +1,12 @@
 import './App.css'
+import { useState } from 'react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 
 function App() {
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
+  const [showWallets, setShowWallets] = useState(false)
 
   const handleWallet = () => {
     if (isConnected) {
@@ -12,11 +14,16 @@ function App() {
       return
     }
 
-    const connector = connectors[0]
+    setShowWallets((current) => !current)
+  }
 
-    if (connector) {
-      connect({ connector })
-    }
+  const handleConnect = (connector: (typeof connectors)[number]) => {
+    connect(
+      { connector },
+      {
+        onSuccess: () => setShowWallets(false),
+      },
+    )
   }
 
   const walletLabel = isConnected
@@ -36,14 +43,31 @@ function App() {
           </p>
         </div>
 
-        <button
-          className="connect-button"
-          type="button"
-          onClick={handleWallet}
-          disabled={isPending}
-        >
-          {walletLabel}
-        </button>
+        <div className="wallet-picker">
+          <button
+            className="connect-button"
+            type="button"
+            onClick={handleWallet}
+            disabled={isPending}
+          >
+            {walletLabel}
+          </button>
+
+          {showWallets && !isConnected && (
+            <div className="wallet-menu">
+              {connectors.map((connector) => (
+                <button
+                  className="wallet-option"
+                  key={connector.uid}
+                  type="button"
+                  onClick={() => handleConnect(connector)}
+                >
+                  {connector.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </header>
 
       <section className="hero-card">

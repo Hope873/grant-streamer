@@ -255,3 +255,50 @@
     flex-direction: column;
   }
 }
+
+.wallet-picker {
+  position: relative;
+}
+
+.wallet-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid #d9dee8;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 14px 32px rgb(16 24 40 / 14%);
+}
+
+.wallet-option {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #101828;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wallet-option:hover {
+  background: #f2f4f7;
+}
+
+.wallet-option:focus-visible {
+  outline: 3px solid rgb(84 112 255 / 25%);
+  outline-offset: -2px;
+}
+
+@media (max-width: 640px) {
+  .wallet-menu {
+    right: auto;
+    left: 0;
+  }
+}

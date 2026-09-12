@@ -3,13 +3,28 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider, createConfig, http } from 'wagmi'
 import { arbitrumSepolia } from 'wagmi/chains'
-import { injected } from 'wagmi/connectors'
+import {
+  coinbaseWallet,
+  injected,
+  walletConnect,
+} from 'wagmi/connectors'
 import './index.css'
 import App from './App.tsx'
 
+const walletConnectProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
+
 const config = createConfig({
   chains: [arbitrumSepolia],
-  connectors: [injected()],
+  connectors: [
+    injected(),
+    coinbaseWallet({
+      appName: 'Grant Streamer',
+    }),
+    walletConnect({
+      projectId: walletConnectProjectId,
+      showQrModal: true,
+    }),
+  ],
   transports: {
     [arbitrumSepolia.id]: http(),
   },
