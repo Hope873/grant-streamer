@@ -21,3 +21,5 @@ docs/
 
 # Foundry deployment artifacts
 broadcast/
+frontend/node_modules/
+frontend/dist/
